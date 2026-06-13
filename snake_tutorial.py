@@ -206,8 +206,8 @@ BUILTIN_NAMES = {'pygame', 'random', 'sys', 'time', 'math', 'os'}
 # ====================================================================
 #  简易语法高亮
 # ====================================================================
-def parse_tokens(line):
-    """将一行代码解析为 (text, color) 片段"""
+def parse_tokens(line, highlight_map=None):
+    """将一行代码解析为 (text, color) 片段。highlight_map 可为特定标识符指定颜色。"""
     tokens = []
     i = 0
     n = len(line)
@@ -257,7 +257,10 @@ def parse_tokens(line):
             while j < n and (line[j].isalnum() or line[j] == '_'):
                 j += 1
             word = line[i:j]
-            if word in KEYWORDS:
+            # 优先检查 highlight_map
+            if highlight_map and word in highlight_map:
+                tokens.append((word, highlight_map[word]))
+            elif word in KEYWORDS:
                 tokens.append((word, COLOR_KEYWORD))
             elif word in BUILTIN_NAMES:
                 tokens.append((word, COLOR_BUILTIN))
@@ -382,8 +385,13 @@ class DemoBase:
     """每个教程步骤的 demo 基类"""
     def setup(self):
         self.t = 0
+        self.paused = False
     def update(self, events, dt):
-        self.t += dt
+        for e in events:
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_SPACE:
+                self.paused = not self.paused
+        if not self.paused:
+            self.t += dt
     def draw(self, surface):
         pass
     def _get_cjk_font(self, size):
@@ -427,67 +435,256 @@ class Demo1(DemoBase):
         surface.blit(txt, (win_rect.x + 70, win_rect.y + 6))
 
 class Demo2(DemoBase):
+    """Step 2: 网格绘制教学可视化 - 展示坐标原理和循环绘制过程"""
     def draw(self, surface):
+        import math
         surface.fill((20, 20, 30))
         w, h = surface.get_size()
-        margin = 40
-        grid_w = min(480, w - margin*2)
-        grid_h = min(480, h - margin*2)
-        cell = grid_w // 15
-        grid_w = cell * 15
-        grid_h = cell * 15
-        gx = (w - grid_w) // 2
-        gy = (h - grid_h) // 2
+        font13 = self._get_cjk_font(13)
+        font14 = self._get_cjk_font(14)
+        font16 = self._get_cjk_font(16)
 
-        # 绘制网格
-        for row in range(16):
-            y = gy + row * cell
-            pygame.draw.line(surface, (50, 50, 70), (gx, y), (gx + grid_w, y))
-        for col in range(16):
-            x = gx + col * cell
-            pygame.draw.line(surface, (50, 50, 70), (x, gy), (x, gy + grid_h))
+        D_CELL = 36
+        D_GRID_W = 8
+        D_GRID_H = 6
+        D_WIDTH = D_CELL * D_GRID_W
+        D_HEIGHT = D_CELL * D_GRID_H
+        gx = (w - D_WIDTH) // 2
+        gy = 75
+        cycle = self.t % 9.0
 
-        # 隔几个格子染色展示
-        pulse = 0.3 + 0.3 * abs(__import__('math').sin(self.t * 2))
-        for r in range(15):
-            for c in range(15):
-                if (r + c) % 3 == 0 and r % 2 == 0:
-                    rect = (gx + c*cell + 1, gy + r*cell + 1, cell-2, cell-2)
-                    alpha = int(60 + 60 * pulse)
-                    pygame.draw.rect(surface, (alpha, alpha, 120), rect)
+        # ---------- 常量标签: 放在网格上方 ----------
+        labels_info = [
+            ("CELL_SIZE = 36", (78, 201, 176)),
+            (f"GRID_W = {D_GRID_W}  GRID_H = {D_GRID_H}", (255, 180, 80)),
+            (f"WIDTH = {D_WIDTH}  HEIGHT = {D_HEIGHT}", (255, 230, 100)),
+        ]
+        label_y = gy - 8
+        label_x_start = gx + D_WIDTH + 14
+        # 如果右侧空间不够，放到下方
+        if label_x_start + 200 > w:
+            label_x_start = gx
+            label_y = gy + D_HEIGHT + 12
+        for i, (txt, col) in enumerate(labels_info):
+            lbl = font13.render(txt, True, col)
+            surface.blit(lbl, (label_x_start, label_y + i * 18))
+            pygame.draw.rect(surface, col, (label_x_start - 14, label_y + i * 18 + 4, 9, 9), border_radius=2)
 
-        font = self._get_cjk_font( 22)
-        txt = font.render("网格布局 — 蛇将在格子上移动", True, GRAY)
-        surface.blit(txt, (gx + grid_w // 2 - txt.get_width()//2, gy + grid_h + 20))
+        # ---------- 绘制网格线（动画） ----------
+        phase1_progress = min(1.0, max(0.0, cycle / 3.0))
+        v_lines_count = int(phase1_progress * (D_GRID_W + 1))
+        for col in range(v_lines_count):
+            x = gx + col * D_CELL
+            is_last = (col == v_lines_count - 1 and phase1_progress < 1.0)
+            if is_last:
+                pygame.draw.line(surface, (200, 140, 255), (x, gy), (x, gy + D_HEIGHT), 2)
+                xlbl = font14.render(f"x={col * D_CELL}", True, (200, 140, 255))
+                surface.blit(xlbl, (x + 4, gy - 18))
+            else:
+                pygame.draw.line(surface, (65, 65, 85), (x, gy), (x, gy + D_HEIGHT))
+
+        if cycle > 3.0:
+            phase2_progress = min(1.0, max(0.0, (cycle - 3.0) / 3.0))
+            h_lines_count = int(phase2_progress * (D_GRID_H + 1))
+            if v_lines_count < D_GRID_W + 1:
+                for col in range(v_lines_count, D_GRID_W + 1):
+                    x = gx + col * D_CELL
+                    pygame.draw.line(surface, (65, 65, 85), (x, gy), (x, gy + D_HEIGHT))
+            for row in range(h_lines_count):
+                y = gy + row * D_CELL
+                is_last = (row == h_lines_count - 1 and phase2_progress < 1.0)
+                if is_last:
+                    pygame.draw.line(surface, (200, 140, 255), (gx, y), (gx + D_WIDTH, y), 2)
+                    ylbl = font14.render(f"y={row * D_CELL}", True, (200, 140, 255))
+                    surface.blit(ylbl, (gx - 50, y - 8))
+                else:
+                    pygame.draw.line(surface, (65, 65, 85), (gx, y), (gx + D_WIDTH, y))
+
+        if cycle > 6.0:
+            if v_lines_count < D_GRID_W + 1:
+                for col in range(v_lines_count, D_GRID_W + 1):
+                    x = gx + col * D_CELL
+                    pygame.draw.line(surface, (65, 65, 85), (x, gy), (x, gy + D_HEIGHT))
+            total_h = int(min(1.0, max(0.0, (cycle - 3.0) / 3.0)) * (D_GRID_H + 1))
+            if total_h < D_GRID_H + 1:
+                for row in range(total_h, D_GRID_H + 1):
+                    y = gy + row * D_CELL
+                    pygame.draw.line(surface, (65, 65, 85), (gx, y), (gx + D_WIDTH, y))
+
+            cs_color = (78, 201, 176)
+            measure_y = gy - 22
+            pygame.draw.line(surface, cs_color, (gx, measure_y), (gx + D_CELL, measure_y), 2)
+            pygame.draw.line(surface, cs_color, (gx, measure_y - 4), (gx, measure_y + 4), 2)
+            pygame.draw.line(surface, cs_color, (gx + D_CELL, measure_y - 4), (gx + D_CELL, measure_y + 4), 2)
+            pygame.draw.polygon(surface, cs_color, [(gx + D_CELL - 6, measure_y - 4), (gx + D_CELL, measure_y), (gx + D_CELL - 6, measure_y + 4)])
+            cslbl = font14.render("CELL_SIZE", True, cs_color)
+            surface.blit(cslbl, (gx + D_CELL // 2 - cslbl.get_width() // 2, measure_y - 20))
+
+            phase3 = cycle - 6.0
+            if phase3 > 1.0:
+                hc, hr = 3, 2
+                rx = gx + hc * D_CELL + 2
+                ry = gy + hr * D_CELL + 2
+                pulse = 0.5 + 0.5 * abs(math.sin(self.t * 2.5))
+                surf_overlay = pygame.Surface((D_CELL - 4, D_CELL - 4), pygame.SRCALPHA)
+                surf_overlay.fill((200, 140, 255, int(80 + 60 * pulse)))
+                surface.blit(surf_overlay, (rx, ry))
+                pygame.draw.rect(surface, (200, 140, 255), (rx, ry, D_CELL - 4, D_CELL - 4), 2, border_radius=4)
+                coord_lbl = font14.render(f"({hc}, {hr})", True, (200, 140, 255))
+                surface.blit(coord_lbl, (rx + D_CELL // 2 - coord_lbl.get_width() // 2, ry - 20))
+                col_lbl = font14.render(f"col={hc}", True, (200, 140, 255))
+                surface.blit(col_lbl, (rx + 4, gy - 34))
+                row_lbl = font14.render(f"row={hr}", True, (200, 140, 255))
+                surface.blit(row_lbl, (gx - 55, ry + D_CELL // 2 - 8))
+
+        # ---------- 底部说明 ----------
+        if cycle < 3.0:
+            desc = "循环1: for x in range(0, WIDTH, CELL_SIZE) - 画竖线"
+        elif cycle < 6.0:
+            desc = "循环2: for y in range(0, HEIGHT, CELL_SIZE) - 画横线"
+        else:
+            desc = "坐标原理: 每个格子用 (col, row) 定位"
+        desc_label = font16.render(desc, True, (200, 200, 220))
+        surface.blit(desc_label, (w // 2 - desc_label.get_width() // 2, h - 30))
 
 # ---------- Step 3: 绘制蛇 ----------
 class Demo3(DemoBase):
-    def setup(self):
-        super().setup()
-        self.snake = [(7, 7), (6, 7), (5, 7)]
-
+    """Step 3: 蛇坐标绘制教学可视化 - 展示列表坐标如何映射到网格"""
     def draw(self, surface):
+        import math
         surface.fill((20, 20, 30))
         w, h = surface.get_size()
-        cell = 28
-        off_x = (w - 15*cell) // 2
-        off_y = (h - 15*cell) // 2
+        font13 = self._get_cjk_font(13)
+        font14 = self._get_cjk_font(14)
+        font16 = self._get_cjk_font(16)
 
-        for row in range(16):
-            pygame.draw.line(surface, (40, 40, 55), (off_x, off_y+row*cell), (off_x+15*cell, off_y+row*cell))
-        for col in range(16):
-            pygame.draw.line(surface, (40, 40, 55), (off_x+col*cell, off_y), (off_x+col*cell, off_y+15*cell))
+        D_CELL = 36
+        D_GRID_W = 10
+        D_GRID_H = 8
+        D_WIDTH = D_CELL * D_GRID_W
+        D_HEIGHT = D_CELL * D_GRID_H
+        gx = (w - D_WIDTH) // 2
+        gy = 75
+        grid_bottom = gy + D_HEIGHT
 
-        for i, (x, y) in enumerate(self.snake):
-            c = (0, 180, 70) if i == 0 else (0, 130, 50)
-            rect = (off_x + x*cell + 2, off_y + y*cell + 2, cell-4, cell-4)
-            pygame.draw.rect(surface, c, rect, border_radius=4)
-            if i == 0:
-                pygame.draw.rect(surface, (0, 220, 90), rect, 2, border_radius=4)
+        demo_snake = [(7, 4), (6, 4), (5, 4)]
+        cycle = self.t % 9.0
 
-        font = self._get_cjk_font( 22)
-        txt = font.render("蛇 = 一系列方格坐标 ", True, GRAY)
-        surface.blit(txt, (w//2 - txt.get_width()//2, off_y + 15*cell + 20))
+        # 颜色
+        C_TEAL = (78, 201, 176)
+        C_ORANGE = (255, 180, 80)
+        C_GOLD = (255, 200, 100)
+        C_PURPLE = (200, 140, 255)
+        C_GREEN_H = (0, 200, 80)
+        C_GREEN_B = (0, 150, 60)
+        C_GRID = (50, 50, 68)
+        C_TEXT = (200, 200, 220)
+
+        # ---------- 网格 ----------
+        for col in range(D_GRID_W + 1):
+            x = gx + col * D_CELL
+            pygame.draw.line(surface, C_GRID, (x, gy), (x, grid_bottom))
+        for row in range(D_GRID_H + 1):
+            y = gy + row * D_CELL
+            pygame.draw.line(surface, C_GRID, (gx, y), (gx + D_WIDTH, y))
+
+        # ---------- 顶部信息条 ----------
+        snake_lbl = font13.render("snake = [(7,4), (6,4), (5,4)]", True, C_GOLD)
+        surface.blit(snake_lbl, (gx, gy - 20))
+        extra_lbl = font13.render("CELL_SIZE=36  GRID=10x8", True, C_TEAL)
+        surface.blit(extra_lbl, (gx + snake_lbl.get_width() + 16, gy - 20))
+
+        # ---------- 动画：分阶段展示 ----------
+        if cycle < 3.0:
+            # Phase 1: 逐个高亮蛇列表坐标
+            idx = int(cycle)
+            idx = min(idx, 2)
+            col, row = demo_snake[idx]
+
+            # 在网格上方显示蛇列表（高亮当前项）
+            parts = []
+            for si, (sc, sr) in enumerate(demo_snake):
+                txt = f"({sc},{sr})"
+                parts.append((txt, si == idx))
+            cursor_x = gx
+            for txt, is_cur in parts:
+                clr = C_PURPLE if is_cur else (120, 120, 140)
+                plbl = font13.render(txt, True, clr)
+                surface.blit(plbl, (cursor_x, gy - 36))
+                cursor_x += plbl.get_width() + 8
+            arrow_txt = font14.render("↑", True, C_PURPLE)
+            surface.blit(arrow_txt, (cursor_x - 8, gy - 34))
+
+            # 网格上的高亮
+            pulse = 0.4 + 0.6 * abs(math.sin(self.t * 3))
+            rx = gx + col * D_CELL + 2
+            ry = gy + row * D_CELL + 2
+            rect_surf = pygame.Surface((D_CELL - 4, D_CELL - 4), pygame.SRCALPHA)
+            rect_surf.fill((C_PURPLE[0], C_PURPLE[1], C_PURPLE[2], int(100 + 80 * pulse)))
+            surface.blit(rect_surf, (rx, ry))
+            pygame.draw.rect(surface, C_PURPLE, (rx, ry, D_CELL - 4, D_CELL - 4), 2, border_radius=4)
+
+            pos_lbl = font13.render(f"col={col}, row={row}", True, C_PURPLE)
+            surface.blit(pos_lbl, (rx + D_CELL // 2 - pos_lbl.get_width() // 2, ry - 18))
+
+            desc = f"遍历列表: snake[{idx}] = ({col}, {row})"
+
+        elif cycle < 6.0:
+            # Phase 2: 坐标→像素转换
+            col, row = 7, 4
+            px_x = col * D_CELL
+            px_y = row * D_CELL
+            rx = gx + px_x
+            ry = gy + px_y
+
+            rect_surf = pygame.Surface((D_CELL, D_CELL), pygame.SRCALPHA)
+            rect_surf.fill((C_PURPLE[0], C_PURPLE[1], C_PURPLE[2], 60))
+            surface.blit(rect_surf, (rx, ry))
+            pygame.draw.rect(surface, C_PURPLE, (rx, ry, D_CELL, D_CELL), 2)
+
+            formulas = [
+                f"col({col}) * CELL_SIZE({D_CELL}) = {px_x} px",
+                f"row({row}) * CELL_SIZE({D_CELL}) = {px_y} px",
+                f"rect = ({px_x}+2, {px_y}+2, {D_CELL}-4, {D_CELL}-4) = ({px_x+2}, {px_y+2}, {D_CELL-4}, {D_CELL-4})",
+            ]
+            form_y = grid_bottom + 22
+            for i, fm in enumerate(formulas):
+                flbl = font13.render(fm, True, C_TEXT)
+                surface.blit(flbl, (gx, form_y + i * 18))
+
+            desc = f"坐标→像素公式: ({col},{row}) → rect左上角=({px_x+2},{px_y+2})"
+
+        else:
+            # Phase 3: 完整蛇 + 颜色区分
+            phase3 = cycle - 6.0
+            for i, (col, row) in enumerate(demo_snake):
+                rx = gx + col * D_CELL + 2
+                ry = gy + row * D_CELL + 2
+                if i == 0:
+                    pygame.draw.rect(surface, C_GREEN_H, (rx, ry, D_CELL - 4, D_CELL - 4), border_radius=4)
+                    pygame.draw.rect(surface, (0, 255, 100), (rx, ry, D_CELL - 4, D_CELL - 4), 2, border_radius=4)
+                else:
+                    pygame.draw.rect(surface, C_GREEN_B, (rx, ry, D_CELL - 4, D_CELL - 4), border_radius=4)
+
+                if phase3 >= 0.8:
+                    pos = font13.render(f"({col},{row})", True, (180, 180, 200))
+                    surface.blit(pos, (rx + D_CELL // 2 - pos.get_width() // 2, ry + D_CELL + 2))
+
+            # 图例 (centered below grid)
+            legend_x = gx + D_WIDTH // 2 - 60
+            legend_y = grid_bottom + 22
+            pygame.draw.rect(surface, C_GREEN_H, (legend_x, legend_y, 12, 12), border_radius=3)
+            l1 = font13.render("蛇头 (i=0)", True, C_TEXT)
+            surface.blit(l1, (legend_x + 18, legend_y - 1))
+            pygame.draw.rect(surface, C_GREEN_B, (legend_x + 100, legend_y, 12, 12), border_radius=3)
+            l2 = font13.render("蛇身 (i>0)", True, C_TEXT)
+            surface.blit(l2, (legend_x + 118, legend_y - 1))
+
+            desc = "完整绘制: 蛇头亮绿, 身体深绿"
+
+        # ---------- 底部说明 ----------
+        desc_label = font16.render(desc, True, C_TEXT)
+        surface.blit(desc_label, (w // 2 - desc_label.get_width() // 2, h - 30))
 
 # ---------- Step 4: 蛇的移动 ----------
 class Demo4(DemoBase):
@@ -994,8 +1191,17 @@ pygame.quit()''',
     },
     {
         "title": "Step 2: 绘制网格",
-        "desc": "蛇在网格上移动。我们用常量定义格子大小和数量，"
+        "desc": "蛇在网格上移动。我们用常量定义格子大小和数量，"\
                 "然后用循环画出网格线。",
+        "highlight_map": {
+            "CELL_SIZE": (78, 201, 176),
+            "GRID_W": (255, 180, 80),
+            "GRID_H": (255, 180, 80),
+            "WIDTH": (255, 230, 100),
+            "HEIGHT": (255, 230, 100),
+            "x": (200, 140, 255),
+            "y": (200, 140, 255),
+        },
         "code": '''\
 CELL_SIZE = 30
 GRID_W = 20
@@ -1022,8 +1228,17 @@ for y in range(0, HEIGHT, CELL_SIZE):
     },
     {
         "title": "Step 3: 绘制蛇",
-        "desc": "蛇是一个坐标列表，每个元素是 (x, y)。"
+        "desc": "蛇是一个坐标列表，每个元素是 (x, y)。"\
                 "遍历列表在对应格子上画方块，蛇头用亮色区分。",
+        "highlight_map": {
+            "CELL_SIZE": (78, 201, 176),
+            "snake": (255, 200, 100),
+            "i": (200, 140, 255),
+            "x": (200, 140, 255),
+            "y": (200, 140, 255),
+            "color": (0, 200, 80),
+            "enumerate": (200, 140, 255),
+        },
         "code": '''\
 # Snake 用列表表示
 snake = [(10, 10), (9, 10), (8, 10)]
@@ -1298,7 +1513,7 @@ class TutorialApp:
         overlay.fill((0, 0, 0, 190))
         self.screen.blit(overlay, (0, 0))
 
-        mw, mh = 440, 370
+        mw, mh = 440, 410
         mx = (WINDOW_W - mw) // 2
         my = (WINDOW_H - mh) // 2
 
@@ -1346,14 +1561,58 @@ class TutorialApp:
         author_label = self.font_small.render("作者：Sync", True, (200, 200, 215))
         self.screen.blit(author_label, (mx_btn, author_y + 10))
 
-        email_label = self.font_small.render("邮箱：synb6662@gmail.com", True, COLOR_HIGHLIGHT)
+        email_text = "作者的邮箱"
+        email_label = self.font_small.render(email_text, True, GREEN)
         email_x = mx_btn
         email_y = author_y + 40
+        email_w = email_label.get_width()
+        email_h = email_label.get_height()
         self.screen.blit(email_label, (email_x, email_y))
-        # 邮箱下划线（提示可点击）
-        underline = pygame.Surface((email_label.get_width(), 1))
-        underline.fill(COLOR_HIGHLIGHT)
-        self.screen.blit(underline, (email_x, email_y + email_label.get_height()))
+        # 下划线
+        underline = pygame.Surface((email_w, 1))
+        underline.fill(GREEN)
+        self.screen.blit(underline, (email_x, email_y + email_h))
+
+        # 悬浮气泡提示
+        mouse_pos = pygame.mouse.get_pos()
+        if (email_x <= mouse_pos[0] <= email_x + email_w and
+                email_y <= mouse_pos[1] <= email_y + email_h):
+            tooltip_text = "synb6662@gmail.com"
+            tooltip_label = self.font_small.render(tooltip_text, True, WHITE)
+            t_w = tooltip_label.get_width() + 14
+            t_h = tooltip_label.get_height() + 8
+            tooltip_x = email_x + email_w // 2 - t_w // 2
+            tooltip_y = email_y - t_h - 6
+            pygame.draw.rect(self.screen, (40, 40, 60), (tooltip_x, tooltip_y, t_w, t_h), border_radius=6)
+            pygame.draw.rect(self.screen, (100, 100, 130), (tooltip_x, tooltip_y, t_w, t_h), 1, border_radius=6)
+            self.screen.blit(tooltip_label, (tooltip_x + 7, tooltip_y + 4))
+
+        # GitHub 仓库链接
+        github_y = email_y + 36
+        star_text = "请给本项目点一个star吧~"
+        star_label = self.font_small.render(star_text, True, GREEN)
+        star_w = star_label.get_width()
+        star_h = star_label.get_height()
+        self.screen.blit(star_label, (email_x, github_y))
+        # 下划线
+        gh_underline = pygame.Surface((star_w, 1))
+        gh_underline.fill(GREEN)
+        self.screen.blit(gh_underline, (email_x, github_y + star_h))
+
+        # 悬浮气泡提示
+        mouse_pos = pygame.mouse.get_pos()
+        if (email_x <= mouse_pos[0] <= email_x + star_w and
+                github_y <= mouse_pos[1] <= github_y + star_h):
+            tooltip_text = "github.com/CCCCOOH/pygame-snake-tutorial"
+            tooltip_label = self.font_small.render(tooltip_text, True, WHITE)
+            t_w = tooltip_label.get_width() + 14
+            t_h = tooltip_label.get_height() + 8
+            tooltip_x = email_x + star_w // 2 - t_w // 2
+            tooltip_y = github_y - t_h - 6
+            # 气泡背景
+            pygame.draw.rect(self.screen, (40, 40, 60), (tooltip_x, tooltip_y, t_w, t_h), border_radius=6)
+            pygame.draw.rect(self.screen, (100, 100, 130), (tooltip_x, tooltip_y, t_w, t_h), 1, border_radius=6)
+            self.screen.blit(tooltip_label, (tooltip_x + 7, tooltip_y + 4))
 
     def restart_demo(self):
         step = STEPS[self.step_idx]
@@ -1460,7 +1719,8 @@ class TutorialApp:
             # 高亮包含新概念的行（如果是步骤标题行不用高亮）
             x_offset = 44
 
-            tokens = parse_tokens(line)
+            highlight_map = step.get("highlight_map", None)
+            tokens = parse_tokens(line, highlight_map)
             window = []  # (text, x_start)
             for text, color in tokens:
                 if text == '':
@@ -1503,6 +1763,9 @@ class TutorialApp:
             label = "效果预览 (可操作)" if self.step_idx >= 4 else "效果预览"
         t = self.font_small.render(label, True, (180, 180, 200))
         self.demo_surface.blit(t, (10, 4))
+        if step["demo"].paused:
+            p = self.font_small.render("⏸ 已暂停 (空格键继续)", True, (255, 200, 80))
+            self.demo_surface.blit(p, (DEMO_W - p.get_width() - 10, 6))
         self.screen.blit(self.demo_surface, (DEMO_X, CONTENT_Y))
 
     def draw_step_title(self):
@@ -1541,7 +1804,7 @@ class TutorialApp:
 
         # 设置菜单点击
         if self.show_settings:
-            mw, mh = 440, 370
+            mw, mh = 440, 410
             mx_center = (WINDOW_W - mw) // 2
             my_center = (WINDOW_H - mh) // 2
             # 退出全屏 / 进入全屏
@@ -1560,6 +1823,11 @@ class TutorialApp:
             email_rect = pygame.Rect(mx_center + 40, my_center + 280, 400, 26)
             if email_rect.collidepoint(pos):
                 webbrowser.open("mailto:synb6662@gmail.com")
+                return
+            # 点击 GitHub 链接
+            github_rect = pygame.Rect(mx_center + 40, my_center + 316, 400, 26)
+            if github_rect.collidepoint(pos):
+                webbrowser.open("https://github.com/CCCCOOH/pygame-snake-tutorial")
                 return
 
     def handle_key(self, key):
