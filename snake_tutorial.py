@@ -6,6 +6,7 @@ import pygame
 import random
 import sys
 import os
+import webbrowser
 
 # ====================================================================
 #  配置
@@ -46,6 +47,153 @@ BUTTON_BG = (50, 50, 70)
 BUTTON_HOVER = (70, 70, 100)
 GREEN = (0, 200, 80)
 RED = (220, 40, 40)
+
+# ====================================================================
+#  Pygame API 悬浮提示
+# ====================================================================
+API_DETAILS = {
+    "pygame.init": (
+        "初始化所有 Pygame 模块",
+        "在调用任何 Pygame 函数之前必须执行",
+    ),
+    "pygame.display.set_mode": (
+        "创建指定大小的窗口（Surface）",
+        "返回的 Surface 就是「屏幕」，后续所有绘制都在上面进行",
+    ),
+    "pygame.display.set_caption": (
+        "设置窗口标题栏文字",
+        "传入一个字符串作为窗口标题",
+    ),
+    "pygame.display.flip": (
+        "将缓冲区内容刷新到屏幕上",
+        "每帧绘制完成后调用，让画面真正显示出来",
+    ),
+    "pygame.event.get": (
+        "获取当前所有未处理的事件列表",
+        "包括键盘、鼠标、窗口关闭等，通常放在主循环开头",
+    ),
+    "pygame.QUIT": (
+        "窗口关闭事件类型",
+        "用户点击关闭按钮时产生，检测它来退出主循环",
+    ),
+    "pygame.KEYDOWN": (
+        "键盘按下事件类型",
+        "通过 e.key 获取具体按键",
+    ),
+    "pygame.KEYUP": (
+        "键盘松开事件类型",
+        "通常配合 KEYDOWN 实现按住检测",
+    ),
+    "pygame.K_UP": (
+        "上方向键常量",
+        "用于判断用户按下的是哪个方向键",
+    ),
+    "pygame.K_DOWN": (
+        "下方向键常量",
+        "用于判断用户按下的是哪个方向键",
+    ),
+    "pygame.K_LEFT": (
+        "左方向键常量",
+        "用于判断用户按下的是哪个方向键",
+    ),
+    "pygame.K_RIGHT": (
+        "右方向键常量",
+        "用于判断用户按下的是哪个方向键",
+    ),
+    "pygame.K_SPACE": (
+        "空格键常量",
+        "在本教程中用于重新开始游戏",
+    ),
+    "pygame.K_ESCAPE": (
+        "Esc 键常量",
+        "在本教程中用于退出应用",
+    ),
+    "pygame.draw.rect": (
+        "在指定 Surface 上绘制矩形",
+        "参数：surface, color, rect(x,y,w,h)",
+    ),
+    "pygame.draw.line": (
+        "在指定 Surface 上绘制线段",
+        "参数：surface, color, start, end",
+    ),
+    "pygame.draw.circle": (
+        "在指定 Surface 上绘制圆形",
+        "参数：surface, color, center, radius",
+    ),
+    "pygame.time.Clock": (
+        "创建一个时钟对象",
+        "用于控制游戏帧率（FPS）",
+    ),
+    "clock.tick": (
+        "限制每秒最大帧数",
+        "返回上一帧经过的毫秒数，通常放在主循环末尾",
+    ),
+    "pygame.Surface": (
+        "创建一个离屏绘画面板",
+        "可以在上面绘制，然后 blit 到屏幕",
+    ),
+    "pygame.SRCALPHA": (
+        "支持透明通道的 Surface 标志",
+        "用于创建半透明叠加效果",
+    ),
+    "pygame.font.Font": (
+        "加载字体文件创建字体对象",
+        "第一个参数可以是字体路径或 None（默认字体）",
+    ),
+    "font.render": (
+        "将文字渲染为 Surface（图像）",
+        "参数：text, antialias, color",
+    ),
+    "surface.blit": (
+        "将一个 Surface 绘制到另一个上",
+        "参数：source（来源）, dest（目标坐标）",
+    ),
+    "pygame.Rect": (
+        "创建矩形对象",
+        "有 x,y,width,height 属性，常用于碰撞检测",
+    ),
+    "pygame.mouse.get_pos": (
+        "获取当前鼠标位置",
+        "返回 (x, y) 元组",
+    ),
+    "pygame.quit": (
+        "卸载所有 Pygame 模块",
+        "程序退出前调用，释放资源",
+    ),
+}
+
+# ====================================================================
+#  Pygame 官方文档链接（点击 API token 跳转）
+# ====================================================================
+PYGAME_DOC_URLS = {
+    "pygame.init": "https://www.pygame.org/docs/ref/pygame.html#pygame.init",
+    "pygame.display.set_mode": "https://www.pygame.org/docs/ref/display.html#pygame.display.set_mode",
+    "pygame.display.set_caption": "https://www.pygame.org/docs/ref/display.html#pygame.display.set_caption",
+    "pygame.display.flip": "https://www.pygame.org/docs/ref/display.html#pygame.display.flip",
+    "pygame.event.get": "https://www.pygame.org/docs/ref/event.html#pygame.event.get",
+    "pygame.QUIT": "https://www.pygame.org/docs/ref/event.html#pygame.QUIT",
+    "pygame.KEYDOWN": "https://www.pygame.org/docs/ref/event.html",
+    "pygame.KEYUP": "https://www.pygame.org/docs/ref/event.html",
+    "pygame.K_UP": "https://www.pygame.org/docs/ref/key.html",
+    "pygame.K_DOWN": "https://www.pygame.org/docs/ref/key.html",
+    "pygame.K_LEFT": "https://www.pygame.org/docs/ref/key.html",
+    "pygame.K_RIGHT": "https://www.pygame.org/docs/ref/key.html",
+    "pygame.K_SPACE": "https://www.pygame.org/docs/ref/key.html",
+    "pygame.K_ESCAPE": "https://www.pygame.org/docs/ref/key.html",
+    "pygame.draw.rect": "https://www.pygame.org/docs/ref/draw.html#pygame.draw.rect",
+    "pygame.draw.line": "https://www.pygame.org/docs/ref/draw.html#pygame.draw.line",
+    "pygame.draw.circle": "https://www.pygame.org/docs/ref/draw.html#pygame.draw.circle",
+    "pygame.time.Clock": "https://www.pygame.org/docs/ref/time.html#pygame.time.Clock",
+    "clock.tick": "https://www.pygame.org/docs/ref/time.html#pygame.time.Clock.tick",
+    "pygame.Surface": "https://www.pygame.org/docs/ref/surface.html",
+    "pygame.SRCALPHA": "https://www.pygame.org/docs/ref/surface.html",
+    "pygame.font.Font": "https://www.pygame.org/docs/ref/font.html#pygame.font.Font",
+    "font.render": "https://www.pygame.org/docs/ref/font.html#pygame.font.Font.render",
+    "surface.blit": "https://www.pygame.org/docs/ref/surface.html#pygame.Surface.blit",
+    "pygame.Rect": "https://www.pygame.org/docs/ref/rect.html",
+    "pygame.mouse.get_pos": "https://www.pygame.org/docs/ref/mouse.html#pygame.mouse.get_pos",
+    "pygame.quit": "https://www.pygame.org/docs/ref/pygame.html#pygame.quit",
+}
 
 KEYWORDS = {
     'import', 'from', 'def', 'class', 'if', 'elif', 'else', 'for', 'while',
@@ -154,8 +302,9 @@ def _load_cjk_font(size):
             if path:
                 f = pygame.font.Font(path, size)
                 # Verify it can actually render CJK (width should be reasonable)
+                ascii_w = f.render("A", True, WHITE).get_width()
                 test_w = f.render("\u4f60", True, WHITE).get_width()
-                if test_w >= 10:
+                if test_w > ascii_w * 1.15:
                     _CJK_FONT_CACHE[size] = f
                     return f
         except Exception:
@@ -177,8 +326,9 @@ def _load_cjk_font(size):
         if os.path.exists(path):
             try:
                 f = pygame.font.Font(path, size)
+                ascii_w = f.render("A", True, WHITE).get_width()
                 test_w = f.render("\u4f60", True, WHITE).get_width()
-                if test_w >= 10:
+                if test_w > ascii_w * 1.15:
                     _CJK_FONT_CACHE[size] = f
                     return f
             except Exception:
@@ -308,7 +458,7 @@ class Demo2(DemoBase):
 
         font = self._get_cjk_font( 22)
         txt = font.render("网格布局 — 蛇将在格子上移动", True, GRAY)
-        surface.blit(txt, (cx - txt.get_width()//2, gy + grid_h + 20))
+        surface.blit(txt, (gx + grid_w // 2 - txt.get_width()//2, gy + grid_h + 20))
 
 # ---------- Step 3: 绘制蛇 ----------
 class Demo3(DemoBase):
@@ -742,8 +892,7 @@ class Demo10(DemoBase):
             return
         for e in events:
             if e.type == pygame.KEYDOWN:
-                m = {pygame.K_UP: (0,-1), pygame.K_DOWN: (0,1), pygame.K_LEFT: (-1,0), pygame.K_RIGHT: (1,0),
-                     pygame.K_w: (0,-1), pygame.K_s: (0,1), pygame.K_a: (-1,0), pygame.K_d: (1,0)}
+                m = {pygame.K_w: (0,-1), pygame.K_s: (0,1), pygame.K_a: (-1,0), pygame.K_d: (1,0)}
                 if e.key in m:
                     nd = m[e.key]
                     if nd[0] + self.dir[0] != 0 or nd[1] + self.dir[1] != 0:
@@ -1060,6 +1209,10 @@ class TutorialApp:
         self.hover_next = False
         self.demo_surface = pygame.Surface((DEMO_W, CONTENT_H))
         self.step_total = len(STEPS)
+        self.api_hit_rects = []
+        self.hovered_api = None
+        self.fullscreen = False
+        self.show_settings = False
         self.restart_demo()
 
     def _get_cjk_font(self, size):
@@ -1076,8 +1229,10 @@ class TutorialApp:
             if os.path.exists(path):
                 try:
                     f = pygame.font.Font(path, size)
-                    test_w = f.render("你", True, WHITE).get_width()
-                    if test_w >= 10:
+                    ascii_w = f.render("A", True, WHITE).get_width()
+                    cjk_w = f.render("你", True, WHITE).get_width()
+                    # Real CJK glyphs are wider than ASCII; tofu boxes match ASCII width
+                    if cjk_w > ascii_w * 1.15:
                         return f
                     # Font loaded but has no CJK glyphs - skip it
                 except:
@@ -1085,6 +1240,120 @@ class TutorialApp:
 
         # Fallback: use the CJK font directly so Chinese characters actually render
         return _load_cjk_font(size)
+
+    def draw_api_tooltip(self):
+        if not self.hovered_api:
+            return
+        detail = API_DETAILS.get(self.hovered_api)
+        if not detail:
+            return
+        zh, note = detail
+
+        mx, my = pygame.mouse.get_pos()
+        gap = 14
+
+        # 准备文字
+        name_line = self.font_code_bold.render(self.hovered_api, True, COLOR_HIGHLIGHT)
+        zh_line = self.font_small.render(zh, True, (220, 220, 235))
+        note_line = self.font_small.render(note, True, (160, 160, 185))
+
+        tw = max(name_line.get_width(), zh_line.get_width(), note_line.get_width()) + 20
+        th = name_line.get_height() + zh_line.get_height() + note_line.get_height() + 24
+
+        # 智能定位：优先右侧，不够则左侧，上方兜底
+        tx = mx + gap
+        ty = my
+
+        # 右边放不下则放左边
+        if tx + tw > WINDOW_W - 8:
+            tx = mx - tw - gap
+        # 左边也放不下就贴右边界
+        if tx < 8:
+            tx = WINDOW_W - tw - 8
+
+        # 下方放不下则放到光标上方
+        if ty + th > WINDOW_H - 8:
+            ty = my - th - gap
+        # 上方也放不下则贴底
+        if ty < 8:
+            ty = WINDOW_H - th - 8
+
+        # 绘制背景
+        tooltip = pygame.Surface((tw, th), pygame.SRCALPHA)
+        tooltip.fill((20, 20, 35, 235))
+        pygame.draw.rect(tooltip, (80, 80, 120, 200), (0, 0, tw, th), 1, border_radius=6)
+        self.screen.blit(tooltip, (tx, ty))
+
+        # 绘制文字
+        self.screen.blit(name_line, (tx + 10, ty + 6))
+        self.screen.blit(zh_line, (tx + 10, ty + 6 + name_line.get_height() + 2))
+        self.screen.blit(note_line, (tx + 10, ty + 6 + name_line.get_height() + zh_line.get_height() + 4))
+
+    def draw_settings_menu(self):
+        if not self.show_settings:
+            return
+
+        # 半透明遮罩
+        overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 190))
+        self.screen.blit(overlay, (0, 0))
+
+        mw, mh = 440, 370
+        mx = (WINDOW_W - mw) // 2
+        my = (WINDOW_H - mh) // 2
+
+        # 弹窗背景
+        pygame.draw.rect(self.screen, (28, 28, 42), (mx, my, mw, mh), border_radius=14)
+        pygame.draw.rect(self.screen, (70, 70, 100), (mx, my, mw, mh), 2, border_radius=14)
+
+        # 标题
+        title = self.font_big.render("设置", True, WHITE)
+        self.screen.blit(title, (mx + (mw - title.get_width()) // 2, my + 20))
+
+        # 分割线
+        pygame.draw.line(self.screen, (60, 60, 80), (mx + 30, my + 75), (mx + mw - 30, my + 75))
+
+        mx_btn = mx + 40
+        btn_w = mw - 80
+        btn_h = 50
+
+        # 全屏切换按钮
+        btn_y1 = my + 100
+        hover1 = (mx_btn <= pygame.mouse.get_pos()[0] <= mx_btn + btn_w and
+                  btn_y1 <= pygame.mouse.get_pos()[1] <= btn_y1 + btn_h)
+        btn_color1 = BUTTON_HOVER if hover1 else BUTTON_BG
+        pygame.draw.rect(self.screen, btn_color1, (mx_btn, btn_y1, btn_w, btn_h), border_radius=8)
+        pygame.draw.rect(self.screen, (80, 80, 110), (mx_btn, btn_y1, btn_w, btn_h), 1, border_radius=8)
+        fs_label = "退出全屏" if self.fullscreen else "进入全屏"
+        fs_t = self.font_normal.render(fs_label, True, WHITE)
+        self.screen.blit(fs_t, (mx_btn + (btn_w - fs_t.get_width()) // 2,
+                                 btn_y1 + (btn_h - fs_t.get_height()) // 2))
+
+        # 退出程序按钮
+        btn_y2 = my + 170
+        hover2 = (mx_btn <= pygame.mouse.get_pos()[0] <= mx_btn + btn_w and
+                  btn_y2 <= pygame.mouse.get_pos()[1] <= btn_y2 + btn_h)
+        btn_color2 = (180, 50, 50) if hover2 else (80, 30, 30)
+        pygame.draw.rect(self.screen, btn_color2, (mx_btn, btn_y2, btn_w, btn_h), border_radius=8)
+        pygame.draw.rect(self.screen, (200, 80, 80), (mx_btn, btn_y2, btn_w, btn_h), 1, border_radius=8)
+        quit_t = self.font_normal.render("退出程序", True, WHITE)
+        self.screen.blit(quit_t, (mx_btn + (btn_w - quit_t.get_width()) // 2,
+                                   btn_y2 + (btn_h - quit_t.get_height()) // 2))
+
+        # 作者信息
+        author_y = my + 250
+        pygame.draw.line(self.screen, (60, 60, 80), (mx + 30, author_y - 5), (mx + mw - 30, author_y - 5))
+        author_label = self.font_small.render("作者：Sync", True, (200, 200, 215))
+        self.screen.blit(author_label, (mx_btn, author_y + 10))
+
+        email_label = self.font_small.render("邮箱：synb6662@gmail.com", True, COLOR_HIGHLIGHT)
+        email_x = mx_btn
+        email_y = author_y + 40
+        self.screen.blit(email_label, (email_x, email_y))
+        # 邮箱下划线（提示可点击）
+        underline = pygame.Surface((email_label.get_width(), 1))
+        underline.fill(COLOR_HIGHLIGHT)
+        self.screen.blit(underline, (email_x, email_y + email_label.get_height()))
 
     def restart_demo(self):
         step = STEPS[self.step_idx]
@@ -1167,11 +1436,12 @@ class TutorialApp:
                          (CODE_W, CONTENT_Y), (CODE_W, CONTENT_Y + CONTENT_H))
 
         step = STEPS[self.step_idx]
+        self.api_hit_rects.clear()
         code_lines = step["code"].split("\n")
 
         line_h = self.font_code.get_height() + 2
-        start_y = CONTENT_Y + 14
-        max_lines = (CONTENT_H - 28) // line_h
+        start_y = CONTENT_Y + 36
+        max_lines = (CONTENT_H - 44) // line_h
 
         # 从合适行开始显示（优先显示后部有内容的部分）
         display_start = max(0, len(code_lines) - max_lines)
@@ -1191,11 +1461,27 @@ class TutorialApp:
             x_offset = 44
 
             tokens = parse_tokens(line)
+            window = []  # (text, x_start)
             for text, color in tokens:
                 if text == '':
                     continue
                 rendered = self.font_code.render(text, True, color)
+                rw, rh = rendered.get_size()
                 self.screen.blit(rendered, (x_offset, y))
+
+                # 滑动窗口：拼接相邻 token 来匹配完整 API 名称
+                window.append((text, x_offset))
+                if len(window) > 8:
+                    window.pop(0)
+                # 检查所有后缀是否命中 API_DETAILS
+                for start in range(len(window)):
+                    candidate = ''.join(t[0] for t in window[start:])
+                    bare = candidate.rstrip('(,):.[]{}"\' ')
+                    if bare in API_DETAILS:
+                        rx = window[start][1]
+                        rw_full = (x_offset + rw) - rx
+                        self.api_hit_rects.append((bare, pygame.Rect(rx, y, rw_full, rh)))
+                        break
                 x_offset += rendered.get_width()
 
     def draw_demo_panel(self):
@@ -1230,6 +1516,15 @@ class TutorialApp:
 
     def handle_click(self, pos):
         mx, my = pos
+
+        # API token 点击 → 打开浏览器跳转官方文档
+        for api_name, rect in self.api_hit_rects:
+            if rect.collidepoint(pos):
+                url = PYGAME_DOC_URLS.get(api_name)
+                if url:
+                    webbrowser.open(url)
+                return
+
         btn_y = WINDOW_H - 40
         btn_w = 100
         btn_h = 30
@@ -1244,17 +1539,43 @@ class TutorialApp:
                 self.step_idx += 1
                 self.restart_demo()
 
+        # 设置菜单点击
+        if self.show_settings:
+            mw, mh = 440, 370
+            mx_center = (WINDOW_W - mw) // 2
+            my_center = (WINDOW_H - mh) // 2
+            # 退出全屏 / 进入全屏
+            if mx_center + 40 <= mx <= mx_center + mw - 40 and my_center + 100 <= my <= my_center + 150:
+                self.fullscreen = not self.fullscreen
+                try:
+                    pygame.display.toggle_fullscreen()
+                except Exception:
+                    pass
+                return
+            # 退出程序
+            if mx_center + 40 <= mx <= mx_center + mw - 40 and my_center + 170 <= my <= my_center + 220:
+                self.running = False
+                return
+            # 点击邮箱
+            email_rect = pygame.Rect(mx_center + 40, my_center + 280, 400, 26)
+            if email_rect.collidepoint(pos):
+                webbrowser.open("mailto:synb6662@gmail.com")
+                return
+
     def handle_key(self, key):
+        # On the final playable step, don't use arrow keys for navigation
+        # so they are reserved for snake controls
+        is_playable = (self.step_idx == self.step_total - 1)
         if key == pygame.K_LEFT:
-            if self.step_idx > 0:
+            if not is_playable and self.step_idx > 0:
                 self.step_idx -= 1
                 self.restart_demo()
         elif key == pygame.K_RIGHT:
-            if self.step_idx < self.step_total - 1:
+            if not is_playable and self.step_idx < self.step_total - 1:
                 self.step_idx += 1
                 self.restart_demo()
         elif key == pygame.K_ESCAPE:
-            self.running = False
+            self.show_settings = not self.show_settings
 
     def run(self):
         while self.running:
@@ -1275,6 +1596,14 @@ class TutorialApp:
             demo_events = [e for e in events if e.type in (pygame.KEYDOWN, pygame.KEYUP)]
             step["demo"].update(demo_events, dt)
 
+            # 检查 API 悬浮
+            mx, my = pygame.mouse.get_pos()
+            self.hovered_api = None
+            for api_name, rect in self.api_hit_rects:
+                if rect.collidepoint(mx, my):
+                    self.hovered_api = api_name
+                    break
+
             # 绘制
             self.screen.fill(PANEL_BG)
             self.draw_header()
@@ -1282,6 +1611,8 @@ class TutorialApp:
             self.draw_step_title()
             self.draw_demo_panel()
             self.draw_bottom()
+            self.draw_api_tooltip()
+            self.draw_settings_menu()
             pygame.display.flip()
 
         pygame.quit()
