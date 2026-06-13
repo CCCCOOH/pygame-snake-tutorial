@@ -1,0 +1,8 @@
+[project]
+name = "snake-tutorial"
+version = "0.1.0"
+description = "📖 贪吃蛇互动教程 - Step-by-step Pygame tutorial"
+requires-python = ">=3.13"
+dependencies = [
+    "pygame>=2.6.1",
+]
